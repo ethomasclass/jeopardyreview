@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Review Showdown · Teacher Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700;800&family=Libre+Baskerville:wght@700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/mqtt@5/dist/mqtt.min.js"></script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#03072b;color:#fff;font-family:'Barlow Condensed',system-ui,sans-serif;font-size:20px}
+a{color:#f5c542}a:hover{color:#ffe08a}
+button{font:inherit;cursor:pointer;color:inherit}
+input,textarea{font:inherit}
+kbd{font-family:inherit;font-size:.7em;border:1.5px solid currentColor;border-radius:4px;padding:0 .35em;margin-left:.4em;opacity:.7}
+.btn{background:#f5c542;color:#0a0f3d;border:0;border-radius:6px;padding:.5em 1.1em;font-weight:800;font-size:22px;letter-spacing:.03em;text-transform:uppercase;display:inline-flex;align-items:center;gap:.2em;white-space:nowrap}
+.btn:hover{background:#ffd866}.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:transparent;color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.4)}.btn.ghost:hover{box-shadow:inset 0 0 0 2px #fff}
+.btn.good{background:#3ecf7a;color:#03240f}.btn.bad{background:#ff6b5a;color:#2a0500}
+.btn.sm{font-size:17px;padding:.4em .8em}.btn.big{font-size:28px;padding:.55em 1.4em}
+.link{background:none;border:0;color:#f5c542;text-decoration:underline;padding:0;font-size:18px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.muted{color:#aeb6e8}
+.eyebrow{text-transform:uppercase;letter-spacing:.16em;font-weight:700;color:#f5c542;font-size:18px}
+/* setup */
+.setup{max-width:1180px;margin:0 auto;padding:36px 28px 60px;display:flex;flex-direction:column;gap:26px}
+.brand{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+.logo{font-family:Anton,sans-serif;font-size:56px;line-height:1;text-transform:uppercase;letter-spacing:.02em;text-shadow:3px 3px 0 #000}
+.logo span{color:#f5c542}
+.sub{color:#aeb6e8;font-size:22px}
+.setup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:20px}
+.panel{background:#0a1477;border-radius:10px;padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+.panel h3{margin:0;font-size:26px;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:10px}
+.panel h3 b{font-family:Anton;background:#f5c542;color:#0a0f3d;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:20px;font-weight:400}
+.setname{font-family:Anton;font-size:34px;line-height:1.05}
+.stats{font-size:20px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips span{background:#13239a;padding:3px 10px;border-radius:4px;font-size:17px;font-weight:600}
+.warn{background:#3a2a00;border:1px solid #f5c542;border-radius:6px;padding:10px 12px;font-size:17px}
+details summary{cursor:pointer;color:#f5c542;font-size:18px}
+details textarea{width:100%;height:110px;margin:8px 0;background:#040a45;color:#fff;border:1px solid #2b3ab8;border-radius:6px;padding:8px;font-size:15px}
+.seg{display:inline-flex;background:#040a45;border-radius:8px;padding:3px;gap:3px;flex-wrap:wrap}
+.seg button{background:none;border:0;padding:6px 14px;border-radius:6px;font-weight:700;font-size:19px;color:#c8cdf0}
+.seg button.on{background:#f5c542;color:#0a0f3d}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.opt>span{font-size:20px;font-weight:600}
+.names{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.names label{display:flex;align-items:center;gap:8px;background:#040a45;border-radius:6px;padding:4px 4px 4px 10px;border-left:6px solid var(--c)}
+.names input{flex:1;min-width:0;background:transparent;border:0;color:#fff;font-size:20px;font-weight:700;padding:6px 4px;outline:none}
+.desc{font-size:18px;color:#c8cdf0;line-height:1.35;margin:0}
+.setup-foot{display:flex;justify-content:flex-end}
+/* lobby */
+.lobby{min-height:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:28px;padding:36px;max-width:1500px;margin:0 auto;align-content:center}
+.joincard{min-width:0;max-width:100%;background:#0a1477;border-radius:12px;padding:28px 30px;display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+.joincard ol{margin:0;padding-left:1.2em;font-size:26px;line-height:1.5}
+.joincard ol b{color:#f5c542;overflow-wrap:anywhere}
+.code{font-family:Anton;font-size:clamp(80px,10vw,150px);line-height:1;letter-spacing:.12em;color:#f5c542;text-shadow:4px 4px 0 #000}
+.qr{background:#fff;padding:10px;border-radius:8px;width:190px;height:190px}
+.pstat{font-size:18px;display:flex;align-items:center;gap:8px}
+.pstat i{width:12px;height:12px;border-radius:50%;background:#888;display:inline-block}
+.pstat.ready i{background:#3ecf7a}.pstat.error i{background:#ff6b5a}
+.lteams{display:flex;flex-direction:column;gap:16px}
+.lteams h2{margin:0;font-family:Anton;font-weight:400;font-size:40px;text-transform:uppercase}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.tcard{background:#0a1477;border-radius:10px;padding:16px 18px;border-top:8px solid var(--c);transition:box-shadow .15s,transform .15s}
+.tcard.flash{box-shadow:0 0 0 4px var(--c),0 0 40px var(--c);transform:scale(1.04)}
+.tcard .n{font-size:30px;font-weight:800;text-transform:uppercase;line-height:1}
+.tcard .d{font-size:19px;color:#c8cdf0;margin-top:6px}
+.tcard .k{font-family:Anton;font-size:44px;color:var(--c);line-height:1;margin-top:8px}
+.lfoot{grid-column:1/-1;display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap}
+/* shell */
+.shell{height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:#000}
+.top{display:flex;align-items:center;gap:16px;padding:8px 16px;background:#03072b;flex-wrap:wrap}
+.ttl{font-family:Anton;font-size:24px;text-transform:uppercase;letter-spacing:.03em}
+.status{flex:1;text-align:center;font-size:22px;font-weight:700;color:#f5c542;min-width:200px}
+.tools{display:flex;gap:6px;flex-wrap:wrap}
+.tool,.chip{background:#0a1477;border:0;border-radius:5px;padding:5px 10px;font-size:16px;font-weight:600;color:#c8cdf0}
+.tool:hover,.chip:hover{background:#13239a;color:#fff}
+.chip b{color:#f5c542;letter-spacing:.08em}
+.main{min-height:0}
+.board{display:grid;gap:clamp(4px,.55vw,10px);padding:clamp(6px,.8vw,14px);height:100%}
+.cat{background:#0d1fb0;display:flex;align-items:center;justify-content:center;text-align:center;padding:.4em;font-weight:800;text-transform:uppercase;font-size:clamp(16px,1.9vw,36px);line-height:1;text-shadow:2px 2px 0 #000;box-shadow:inset 0 0 40px rgba(0,0,20,.45);text-wrap:balance}
+.tile{background:#0d1fb0;border:0;color:#f5c542;font-family:Anton;font-size:clamp(26px,4.2vw,84px);text-shadow:3px 3px 0 #000;box-shadow:inset 0 0 40px rgba(0,0,20,.45);min-height:0;padding:0}
+.tile:hover{background:#1a33dd}
+.tile.used{background:#071273;cursor:default}
+.tile.empty{background:#040a45;cursor:default}
+.scores{display:grid;gap:8px;padding:8px 14px 12px;background:#000}
+.team{background:#0d1fb0;border-top:6px solid var(--c);padding:6px 10px 8px;text-align:center;position:relative;border-radius:2px;transition:box-shadow .15s,opacity .15s}
+.team.buzz{box-shadow:0 0 0 4px var(--c),0 0 36px var(--c)}
+.team.locked{opacity:.38}
+.tname{font-size:clamp(16px,1.4vw,26px);font-weight:800;text-transform:uppercase;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tscore{font-family:Anton;font-size:clamp(28px,2.8vw,52px);line-height:1.05;text-shadow:2px 2px 0 #000}
+.tscore.neg{color:#ff8a7a}
+.picks{position:absolute;top:-6px;left:50%;transform:translate(-50%,-60%);background:var(--c);color:#000;font-weight:800;font-size:14px;text-transform:uppercase;padding:1px 8px;border-radius:3px;letter-spacing:.06em}
+.adj{position:absolute;right:4px;top:4px;background:none;border:0;font-size:13px;color:#aeb6e8;opacity:0;padding:2px 4px}
+.team:hover .adj{opacity:1}
+.dev{font-size:13px;color:#aeb6e8;position:absolute;left:6px;top:4px}
+/* clue */
+.cluewrap{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;padding:clamp(6px,.8vw,14px);gap:10px}
+.cluehead{display:flex;justify-content:space-between;gap:20px;font-weight:800;text-transform:uppercase;font-size:clamp(18px,1.7vw,30px);padding:0 4px}
+.cpts{font-family:Anton;font-weight:400;color:#f5c542}
+.cluecard{background:#0d1fb0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.4vh;padding:3vh 5vw;text-align:center;box-shadow:inset 0 0 80px rgba(0,0,20,.5);transition:box-shadow .2s;overflow:auto}
+.cluecard.open{box-shadow:inset 0 0 0 8px #f5c542,inset 0 0 120px rgba(245,197,66,.45)}
+.cluetext{font-family:'Libre Baskerville',Georgia,serif;font-weight:700;text-transform:uppercase;font-size:clamp(24px,3.4vw,66px);line-height:1.32;text-shadow:3px 3px 0 #000;text-wrap:balance;max-width:1500px}
+.cluetext.small{font-size:clamp(18px,1.8vw,34px);opacity:.85}
+.cluetext.mc{font-size:clamp(22px,2.7vw,52px)}
+.choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(8px,1vw,16px);width:min(1500px,100%)}
+.choice{display:flex;align-items:center;gap:.6em;background:rgba(0,0,20,.35);border:2px solid rgba(255,255,255,.28);border-radius:8px;padding:.45em .8em;font-size:clamp(20px,2.1vw,40px);font-weight:700;text-align:left;color:#fff;line-height:1.1}
+.choice b{font-family:Anton;font-weight:400;color:#f5c542;flex:none;width:1.2em}
+button.choice:hover{border-color:#f5c542;background:rgba(245,197,66,.15)}
+.choice.struck{opacity:.28;text-decoration:line-through}
+.choice.picked{background:#7a1f16;border-color:#ff8a7a;opacity:1}
+.choice.right{background:#1f8f4e;border-color:#5ee69a;opacity:1;text-decoration:none}
+.answer{font-family:Anton;color:#f5c542;font-size:clamp(34px,4.6vw,90px);line-height:1.05;text-transform:uppercase;text-shadow:3px 3px 0 #000}
+.ddsplash{font-family:Anton;text-transform:uppercase;font-size:clamp(70px,11vw,220px);line-height:.92;color:#f5c542;text-shadow:5px 5px 0 #000;letter-spacing:.02em}
+.ddsplash.sm{font-size:clamp(40px,5vw,96px)}
+.cardsub{font-size:clamp(20px,2vw,36px);font-weight:700}
+.bigwager{font-family:Anton;font-size:clamp(60px,7vw,140px);line-height:1}
+.fcat{font-family:'Libre Baskerville',serif;font-weight:700;text-transform:uppercase;font-size:clamp(30px,4vw,76px);text-shadow:3px 3px 0 #000}
+.result{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;background:rgba(0,0,0,.35);border-left:8px solid var(--c,#fff);padding:10px 22px;border-radius:4px;font-size:clamp(20px,2vw,36px)}
+.result .rteam{font-weight:800;text-transform:uppercase}
+.result .rans{font-family:'Libre Baskerville',serif;font-size:.9em}
+.result .rdelta{font-family:Anton;letter-spacing:.02em}
+.result.ok .rdelta{color:#5ee69a}.result.no .rdelta{color:#ff8a7a}
+.fteam{font-family:Anton;text-transform:uppercase;font-size:clamp(40px,5vw,96px);color:var(--c);line-height:1;text-shadow:3px 3px 0 #000}
+.fans{font-family:'Libre Baskerville',serif;font-size:clamp(26px,3vw,56px)}
+.foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-height:70px;padding:2px 4px}
+.foot .msg{flex:1;font-size:22px;color:#c8cdf0;min-width:200px}
+.foot input{width:150px;font-size:24px;padding:8px 10px;border-radius:6px;border:0;background:#fff;color:#000}
+.buzznow{color:#f5c542!important;font-family:Anton;font-size:34px!important;text-transform:uppercase;letter-spacing:.04em}
+.elig{display:flex;gap:6px;flex-wrap:wrap}.elig span{border-bottom:4px solid var(--c);font-weight:700;padding:0 4px}
+.who{font-family:Anton;font-size:40px;text-transform:uppercase;color:var(--c);line-height:1}
+.tbar{height:14px;background:rgba(255,255,255,.15);border-radius:7px;overflow:hidden;flex:1;min-width:160px}
+.tbar>i{display:block;height:100%;background:#f5c542}
+.tnum{font-family:Anton;font-size:40px;width:50px;text-align:center}
+.fw{display:flex;gap:10px;flex-wrap:wrap;flex:1}
+.fw label{display:flex;align-items:center;gap:8px;background:#0a1477;border-left:6px solid var(--c);padding:4px 8px;border-radius:4px}
+.fw label span{font-weight:700;font-size:18px}
+.fw input{width:100px!important;font-size:20px!important;padding:4px 6px!important}
+.fw em{color:#5ee69a;font-style:normal;font-weight:800}
+.fstat{display:flex;gap:10px;flex-wrap:wrap}.fstat span{border-bottom:4px solid var(--c);padding:0 4px;font-weight:700;opacity:.55}.fstat span.in{opacity:1}
+/* end */
+.end{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:40px;text-align:center}
+.winner{font-family:Anton;font-size:clamp(50px,7vw,130px);text-transform:uppercase;color:#f5c542;line-height:1;text-shadow:4px 4px 0 #000}
+.rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;width:min(640px,100%)}
+.rank li{display:flex;justify-content:space-between;align-items:center;background:#0a1477;border-left:10px solid var(--c);padding:10px 20px;font-size:30px;font-weight:800;text-transform:uppercase}
+.rank b{font-family:Anton;font-weight:400}
+/* overlays */
+.ov{position:fixed;inset:0;background:rgba(2,4,30,.94);display:flex;align-items:center;justify-content:center;padding:30px;z-index:10}
+.tut{width:min(1000px,100%);display:flex;flex-direction:column;gap:22px;align-items:center;text-align:center}
+.tut h2{margin:0;font-family:Anton;font-weight:400;font-size:clamp(40px,4.4vw,80px);text-transform:uppercase;line-height:1;color:#f5c542;text-shadow:3px 3px 0 #000}
+.tut p{margin:0;font-size:clamp(22px,2vw,34px);line-height:1.35;max-width:880px;text-wrap:pretty}
+.tvis{min-height:180px;display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap}
+.tv-board{display:grid;grid-template-columns:repeat(3,120px);gap:6px}
+.tv-board div{background:#0d1fb0;height:64px;display:grid;place-items:center;font-family:Anton;color:#f5c542;font-size:30px;text-shadow:2px 2px 0 #000}
+.tv-board div.h{color:#fff;font-family:'Barlow Condensed';font-weight:800;font-size:18px;text-transform:uppercase}
+.tv-clue{background:#0d1fb0;padding:22px 34px;font-family:'Libre Baskerville',serif;font-weight:700;font-size:30px;text-shadow:2px 2px 0 #000}
+.tv-arrow{font-size:40px;color:#aeb6e8}
+.tv-ans{background:#fff;color:#000;padding:14px 26px;border-radius:8px;font-size:34px;font-weight:700}
+.tv-buzz{display:flex;gap:26px}
+.tv-buzz span{width:150px;height:150px;border-radius:50%;display:grid;place-items:center;font-family:Anton;font-size:30px;text-transform:uppercase}
+.tv-buzz .wait{background:#2a3170;color:#9aa2d8}.tv-buzz .go{background:#f5c542;color:#0a0f3d;box-shadow:0 0 40px #f5c542}
+.tv-pts{display:flex;gap:26px;font-family:Anton;font-size:64px}.tv-pts .plus{color:#5ee69a}.tv-pts .minus{color:#ff8a7a}
+.tv-dd{font-family:Anton;font-size:80px;color:#f5c542;text-transform:uppercase;text-shadow:4px 4px 0 #000;background:#0d1fb0;padding:10px 40px}
+.dots{display:flex;gap:8px}.dots i{width:12px;height:12px;border-radius:50%;background:#2a3170}.dots i.on{background:#f5c542}
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#ff6b5a;color:#2a0500;font-weight:800;font-size:22px;padding:8px 18px;border-radius:6px;z-index:20;text-transform:uppercase}
+.dropping::after{content:'Drop the CSV to load it';position:fixed;inset:0;display:grid;place-items:center;background:rgba(3,7,43,.9);color:#f5c542;font-family:Anton;font-size:60px;z-index:30}
+@media (max-width:900px){.lobby{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<input type="file" id="file" accept=".csv,.tsv,.txt,text/csv" hidden>
+<script>
+const UNIT3 = `#title: Unit 3 Review
+category,points,clue,answer,also_accept,wrong_1,wrong_2,wrong_3
+Early Republic,100,"Laws passed in 1798 that made it a crime to publish false or malicious writing against the government",Sedition Act,Alien and Sedition Acts|Sedition Acts,Alien Act,Embargo Act,Judiciary Act
+Early Republic,200,"The 1803 deal in which the United States bought a huge territory from France for $15 million",Louisiana Purchase,,Adams-Onís Treaty,Gadsden Purchase,Treaty of Ghent
+Early Republic,300,"The power of courts to strike down laws that conflict with the Constitution",Judicial review,,Nullification,Implied powers,Executive privilege
+Early Republic,400,"The 1803 Supreme Court case that first used judicial review",Marbury v. Madison,Marbury|Marbury vs Madison,McCulloch v. Maryland,Gibbons v. Ogden,Worcester v. Georgia
+Early Republic,500,"Jefferson's 1807 law that kept American ships out of foreign ports",Embargo Act,Embargo|Embargo Act of 1807,Sedition Act,Force Bill,Tariff of 1816
+War of 1812,100,"The British practice of forcing American sailors to serve in the Royal Navy",Impressment,,Privateering,Blockade,Embargo
+War of 1812,200,"Young members of Congress, like Henry Clay, who pushed for war with Britain",War Hawks,,Federalists,Whigs,Loyalists
+War of 1812,300,"The Shawnee leader who united Native nations to resist U.S. settlement and sided with Britain",Tecumseh,,Sequoyah,Black Hawk,Osceola
+War of 1812,400,"The 1814 meeting where Federalists protested the war, which made their party look disloyal",Hartford Convention,,Seneca Falls Convention,Constitutional Convention,Treaty of Ghent
+War of 1812,500,"The 1815 battle Andrew Jackson won after the peace treaty had already been signed",Battle of New Orleans,New Orleans,Battle of Lake Erie,Battle of the Thames,Battle of Baltimore
+Good Feelings,100,"Loyalty and devotion to a nation",Nationalism,,Sectionalism,Federalism,Isolationism
+Good Feelings,200,"A tax on imported goods meant to help American factories",Protective tariff,Tariff,Excise tax,Embargo,Internal improvements
+Good Feelings,300,"Henry Clay's plan of a tariff, a national bank and internal improvements",American System,,Spoils System,Market economy,Monroe Doctrine
+Good Feelings,400,"Monroe's 1823 warning to Europe not to set up new colonies in the Americas",Monroe Doctrine,,Missouri Compromise,American System,Manifest Destiny
+Good Feelings,500,"The 1820 deal that admitted Missouri as a slave state and Maine as a free state",Missouri Compromise,Compromise of 1820,Corrupt Bargain,Adams-Onís Treaty,Tariff of Abominations
+Age of Jackson,100,"The right to vote",Suffrage,,Nullification,Abolition,Temperance
+Age of Jackson,200,"What Jackson's supporters called the 1824 deal that made John Quincy Adams president",Corrupt Bargain,,Spoils System,Kitchen Cabinet,Era of Good Feelings
+Age of Jackson,300,"The theory that a state could declare a federal law invalid",Nullification,,Judicial review,Secession,Sectionalism
+Age of Jackson,400,"The 1830 law that forced Native nations to move west of the Mississippi River",Indian Removal Act,,Force Bill,Homestead Act,Worcester v. Georgia
+Age of Jackson,500,"The forced march of the Cherokee to Indian Territory in 1838",Trail of Tears,,Oregon Trail,Black Hawk War,Second Seminole War
+Reform & Markets,100,"The movement to end slavery",Abolition,Abolitionism|Abolition movement,Temperance,Suffrage,Nativism
+Reform & Markets,200,"The reformer who exposed how prisoners and people with mental illness were treated",Dorothea Dix,Dix,Elizabeth Cady Stanton,Horace Mann,Lucretia Mott
+Reform & Markets,300,"The 1848 meeting in New York that launched the women's rights movement",Seneca Falls Convention,Seneca Falls,Hartford Convention,Second Great Awakening,Temperance movement
+Reform & Markets,400,"The waterway, opened in 1825, that linked the Great Lakes to New York City",Erie Canal,,National Road,Chesapeake and Ohio Canal,Mississippi River
+Reform & Markets,500,"An economy where people make goods to sell instead of only for their own use",Market economy,,Subsistence farming,Cottage industry,Command economy
+North & South,100,"Young women from New England farms who worked in the Lowell textile factories",Mill girls,Lowell mill girls|Lowell girls,Irish immigrants,Yeoman farmers,Indentured servants
+North & South,200,"Making goods with machines in one large building instead of by hand at home",Factory system,,Cottage industry,Putting-out system,Interchangeable parts
+North & South,300,"Eli Whitney's 1793 machine that pulled the seeds out of cotton",Cotton gin,,Power loom,Steel plow,Mechanical reaper
+North & South,400,"The nickname for cotton that showed how much the Southern economy depended on it",King Cotton,,Cash crop,Cotton Belt,Staple crop
+North & South,500,"Small Southern farmers who owned their land and most often owned no enslaved people",Yeoman farmers,Yeomen|Yeoman,Planters,Sharecroppers,Tenant farmers
+Turning Points,FINAL,"Historians call this election a revolution because power passed peacefully from one party to its rival",Election of 1800,1800|Revolution of 1800,Election of 1796,Election of 1824,Election of 1828
+`;
+const TEMPLATE = '#title: My Review Game\n"# One row per clue. Clue = the definition or description. Answer = the term (a few words). Up to 6 categories and 6 clues per category."\n"# Separate extra accepted answers with | (example: Dix|Dorothea Dix). Put FINAL in the points column for the final round. wrong_1 to wrong_3 are the wrong multiple-choice options; blanks are filled from other answers in the set. Rows that start with # are ignored."\ncategory,points,clue,answer,also_accept,wrong_1,wrong_2,wrong_3\n' +
+  [1,2,3,4,5,6].map(c=>[100,200,300,400,500].map(p=>`Category ${c},${p},,,,,,`).join('\n')).join('\n') + '\nFinal Category,FINAL,,,,,,\n';
+
+const PREFIX='cpareview-', LS='cpaReview.host.v1';
+const COLORS=['#f5c542','#ff7a59','#3dd6c6','#9be15d','#c39bff','#5cb8ff'];
+const $=s=>document.querySelector(s);
+const h=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>(n<0?'−':'')+Math.abs(n).toLocaleString();
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+function genCode(){const A='ABCDEFGHJKLMNPQRSTUVWXYZ';let s='';for(let i=0;i<4;i++)s+=A[Math.floor(Math.random()*A.length)];return s}
+
+/* ---------- CSV ---------- */
+function parseRows(text){
+  text=text.replace(/^\uFEFF/,'');
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  const d=lines.filter(l=>l.includes('\t')).length>=lines.length/2?'\t':',';
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"'&&f.trim()==='')q=true,f='';
+    else if(c===d){row.push(f);f=''}
+    else if(c==='\n'){row.push(f);rows.push(row);row=[];f=''}
+    else if(c!=='\r')f+=c;}
+  if(f!==''||row.length){row.push(f);rows.push(row)}
+  return rows.map(r=>r.map(s=>s.trim())).filter(r=>r.some(x=>x));
+}
+function parseSet(text){
+  const rows=parseRows(text);let title='Review Game';const cats=[],errors=[];let final=null;
+  const col={category:0,points:1,clue:2,answer:3,accept:4,wrong:[5,6,7]};
+  rows.forEach((r,i)=>{const a=r[0]||'';
+    if(a.startsWith('#')){const m=a.match(/^#\s*title\s*[:=]?\s*(.*)$/i);if(m)title=(m[1]||r[1]||'').trim()||title;return}
+    if(/^category$/i.test(a)){col.wrong=[];r.forEach((x,j)=>{x=x.toLowerCase();
+      if(x.startsWith('cat'))col.category=j;else if(x.startsWith('point')||x.startsWith('value'))col.points=j;
+      else if(x.startsWith('clue')||x.startsWith('question')||x.startsWith('definition'))col.clue=j;
+      else if(x.startsWith('answer')||x.startsWith('term'))col.answer=j;else if(x.includes('accept'))col.accept=j;else if(/wrong|distract|choice/.test(x))col.wrong.push(j)});return}
+    const cat=r[col.category]||'',pts=r[col.points]||'',clue=r[col.clue]||'',ans=r[col.answer]||'';
+    const acc=(r[col.accept]||'').split('|').map(s=>s.trim()).filter(Boolean);
+    const wrong=col.wrong.map(j=>(r[j]||'').trim()).filter(Boolean);
+    if(!clue&&!ans)return;
+    if(!cat||!clue||!ans){errors.push(`Row ${i+1}: needs a category, clue and answer`);return}
+    if(/final/i.test(pts)){final={category:cat,clue,answer:ans,accept:acc,wrong};return}
+    const p=parseInt(pts.replace(/[^0-9]/g,''));
+    if(!p){errors.push(`Row ${i+1}: points should be a number or FINAL`);return}
+    let c=cats.find(x=>x.name.toLowerCase()===cat.toLowerCase());
+    if(!c){if(cats.length>=6){errors.push(`Row ${i+1}: only 6 categories fit, "${cat}" skipped`);return}c={name:cat,clues:[]};cats.push(c)}
+    if(c.clues.length>=6){errors.push(`Row ${i+1}: only 6 clues fit in "${cat}"`);return}
+    c.clues.push({points:p,clue,answer:ans,accept:acc,wrong});
+  });
+  cats.forEach(c=>c.clues.sort((a,b)=>a.points-b.points));
+  if(!cats.length)errors.unshift('No clues found. Check that the file has category, points, clue and answer columns.');
+  return {title,cats,final,errors};
+}
+function toCSV(set){const e=s=>/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+  const L=['#title: '+set.title,'category,points,clue,answer,also_accept,wrong_1,wrong_2,wrong_3'],w=q=>[0,1,2].map(k=>(q.wrong||[])[k]||'');
+  set.cats.forEach(c=>c.clues.forEach(q=>L.push([c.name,q.points,q.clue,q.answer,q.accept.join('|'),...w(q)].map(x=>e(String(x))).join(','))));
+  if(set.final)L.push([set.final.category,'FINAL',set.final.clue,set.final.answer,set.final.accept.join('|'),...w(set.final)].map(x=>e(String(x))).join(','));
+  return L.join('\n')+'\n'}
+function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+
+/* ---------- answer check ---------- */
+function norm(s){s=String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9 ]/g,' ');
+  s=s.replace(/^\s*(what|who|where|when)\s+(is|are|was|were)\s+/,'');
+  s=(' '+s+' ').replace(/ (the|a|an) /g,' ').replace(/ (the|a|an) /g,' ');return s.replace(/\s+/g,' ').trim()}
+function lev(a,b){const m=a.length,n=b.length;if(!m)return n;if(!n)return m;let p=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]}
+function check(input,answers){const x=norm(input);if(!x)return false;
+  return answers.some(a=>{const y=norm(a);if(!y)return false;if(x===y)return true;
+    const tol=y.length<=4?0:y.length<=8?1:2;if(lev(x,y)<=tol)return true;
+    if(y.length>=5&&x.includes(y)&&x.length<=y.length+12)return true;return false})}
+
+/* ---------- state ---------- */
+function defaults(){return{set:parseSet(UNIT3),setLabel:'Built-in set',teamCount:4,teamNames:['Team 1','Team 2','Team 3','Team 4','Team 5','Team 6'],
+  mode:'net',style:'mc',ddCount:1,timer:10,finalTimer:30,subtract:true,sound:true,tutorial:true,code:genCode(),phase:'setup',teams:[],board:null,control:0,cur:null,final:null,tut:null}}
+let S;try{S=JSON.parse(localStorage.getItem(LS))}catch(e){}
+if(!S||!S.set)S=defaults();
+if(!S.style)S.style='mc';
+if(S.setLabel==='Built-in set'&&(S.phase==='setup'||S.phase==='lobby'))S.set=parseSet(UNIT3);
+function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
+let flash={i:-1,until:0},showJoin=false,toastMsg='',toastT,lastTick=null;
+function toast(m){toastMsg=m;clearTimeout(toastT);toastT=setTimeout(()=>{toastMsg='';render()},1400);render()}
+
+/* ---------- sound ---------- */
+let AC;
+function tone(f,d,type='sine',v=.2,w=0){if(!S.sound)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();
+  const t=AC.currentTime+w,o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+d+.02)}catch(e){}}
+const sfx={buzz(){tone(185,.42,'sawtooth',.22);tone(92,.42,'square',.1)},right(){[660,880,1320].forEach((f,i)=>tone(f,.28,'triangle',.24,i*.09))},
+  wrong(){tone(220,.3,'square',.15);tone(155,.5,'square',.15,.16)},open(){tone(988,.1,'sine',.18);tone(1319,.16,'sine',.18,.08)},tick(){tone(1500,.05,'square',.07)},
+  dd(){[523,659,784,1047,784,1047,1319].forEach((f,i)=>tone(f,.2,'triangle',.22,i*.08))},tile(){tone(520,.08,'sine',.12)},
+  end(){[523,659,784,1047,1319,1568].forEach((f,i)=>tone(f,.35,'triangle',.22,i*.12))}};
+
+/* ---------- helpers ---------- */
+const curQ=()=>S.board[S.cur.c].clues[S.cur.r];
+const maxVal=()=>Math.max(0,...S.set.cats.flatMap(c=>c.clues.map(q=>q.points)));
+const ddMax=i=>Math.max(S.teams[i].score,maxVal());
+const fMax=i=>Math.max(0,S.teams[i].score);
+const value=()=>S.cur.dd?(S.cur.wager||0):curQ().points;
+const eligible=()=>S.teams.map((_,i)=>i).filter(i=>!S.cur.locked.includes(i));
+const answersFor=q=>[q.answer,...(q.accept||[])];
+const allAnswers=()=>[...S.set.cats.flatMap(c=>c.clues.map(q=>q.answer)),...(S.set.final?[S.set.final.answer]:[])];
+function choicesFor(q){const same=a=>norm(a)===norm(q.answer);let w=[];
+  (q.wrong||[]).forEach(x=>{if(!same(x)&&!w.some(y=>norm(y)===norm(x))&&w.length<3)w.push(x)});
+  if(w.length<3){const wc=s=>s.trim().split(/\s+/).length,n=wc(q.answer);
+    const pool=shuffle(allAnswers().filter(a=>!same(a)&&!w.some(y=>norm(y)===norm(a)))).sort((a,b)=>Math.abs(wc(a)-n)-Math.abs(wc(b)-n));
+    w=w.concat(pool.slice(0,3-w.length))}
+  return shuffle([q.answer,...w])}
+function choicesHTML(ch,struck,correct,picked,clickable){return `<div class="choices">${ch.map((x,k)=>{const cls=['choice',struck.includes(k)?'struck':'',correct!=null&&x===correct?'right':'',picked===k?'picked':''].join(' ');
+  return clickable&&!struck.includes(k)?`<button class="${cls}" data-act="choose" data-k="${k}"><b>${'ABCD'[k]}</b><span>${h(x)}</span></button>`:`<div class="${cls}"><b>${'ABCD'[k]}</b><span>${h(x)}</span></div>`}).join('')}</div>`}
+
+/* ---------- game flow ---------- */
+function toLobby(){S.teams=S.teamNames.slice(0,S.teamCount).map((n,i)=>({name:(n||'').trim()||'Team '+(i+1),score:0,color:COLORS[i]}));S.phase='lobby';initNet();render()}
+function startGame(){
+  S.teams.forEach(t=>t.score=0);
+  S.board=S.set.cats.map(c=>({name:c.name,clues:c.clues.map(q=>({...q,used:false,dd:false}))}));
+  const cand=shuffle(S.board.flatMap((c,ci)=>c.clues.map((q,ri)=>[ci,ri]).filter(([,ri])=>ri>0||c.clues.length===1)));
+  const usedCols=[];let n=0;for(const [ci,ri] of cand){if(n>=S.ddCount)break;if(usedCols.includes(ci))continue;S.board[ci].clues[ri].dd=true;usedCols.push(ci);n++}
+  S.control=0;S.cur=null;S.final=null;S.phase='board';S.tut=S.tutorial?0:null;render()}
+function pick(c,r){const q=S.board[c]?.clues[r];if(S.phase!=='board'||!q||q.used)return;
+  S.cur={c,r,dd:q.dd,state:q.dd?'dd-intro':'reading',buzzTeam:null,locked:[],early:{},answer:null,verdict:null,last:null,wager:null,ddTeam:S.control,timerEnd:0,timeUp:false,choices:S.style==='mc'?choicesFor(q):null,struck:[],picked:null};
+  S.phase='clue';q.dd?sfx.dd():sfx.tile();render()}
+function openBuzz(){const c=S.cur;if(!c||c.dd)return;c.state='open';c.buzzTeam=null;c.answer=null;c.timeUp=false;sfx.open();render()}
+function buzz(i,cid){
+  if(S.phase==='lobby'||S.phase==='board'){flash={i,until:Date.now()+700};if(S.phase==='lobby')sfx.buzz();render();setTimeout(render,750);return}
+  if(S.phase!=='clue'||!S.cur||S.cur.dd)return;const c=S.cur,now=Date.now();
+  if(c.state==='reading'){c.early[i]=now+1000;if(cid)toClient(cid,{t:'early'});if(S.mode==='keys')toast(S.teams[i].name+': too early!');render();return}
+  if(c.state!=='open'||c.locked.includes(i)||(c.early[i]||0)>now)return;
+  c.buzzTeam=i;c.state='answering';c.timerEnd=now+S.timer*1000;c.answer=null;c.timeUp=false;sfx.buzz();render()}
+function startDD(){const c=S.cur;c.buzzTeam=c.ddTeam;c.state='answering';c.timerEnd=Date.now()+S.timer*1000;c.answer=null;c.timeUp=false;sfx.open();render()}
+function judge(ok){const c=S.cur;if(!c||c.state!=='answering')return;const t=c.buzzTeam,v=value();
+  const d=ok?v:(S.subtract?-v:0);S.teams[t].score+=d;c.last={team:t,delta:d,ok,prevControl:S.control};
+  c.state='judged';c.verdict=ok;if(ok)S.control=t;else if(!c.locked.includes(t))c.locked.push(t);ok?sfx.right():sfx.wrong();render()}
+function override(){const c=S.cur,L=c&&c.last;if(!L)return;S.teams[L.team].score-=L.delta;S.control=L.prevControl;
+  c.locked=c.locked.filter(x=>x!==L.team);c.state='answering';c.buzzTeam=L.team;
+  if(c.choices&&c.picked!=null){c.struck=c.struck.filter(x=>x!==c.picked);if(L.ok)c.struck.push(c.picked)}judge(!L.ok)}
+function choose(k){const c=S.cur;if(S.phase!=='clue'||!c||!c.choices||c.state!=='answering'||c.struck.includes(k)||!c.choices[k])return;
+  c.answer=c.choices[k];c.picked=k;const ok=c.choices[k]===curQ().answer;if(!ok)c.struck.push(k);judge(ok)}
+function timeUp(){const c=S.cur;if(!c||c.state!=='answering'||c.timeUp)return;
+  if(S.mode==='net'&&c.answer==null){c.answer='';judge(false)}else{c.timeUp=true;sfx.wrong();render()}}
+function onAnswer(i,text){const c=S.cur;if(S.phase!=='clue'||!c||c.state!=='answering'||c.buzzTeam!==i||c.answer!=null)return;
+  c.answer=String(text).slice(0,120);judge(check(c.answer,answersFor(curQ())))}
+function reveal(){S.cur.state='revealed';render()}
+function toBoard(){if(S.cur)curQ().used=true;S.cur=null;
+  if(S.board.every(c=>c.clues.every(q=>q.used))){S.set.final?startFinal():endGame();return}
+  S.phase='board';render()}
+function startFinal(){S.cur=null;S.phase='final';S.final={choices:S.style==='mc'?choicesFor(S.set.final):null,state:'category',wagers:{},answers:{},timerEnd:0,timeUp:false,order:[],idx:0,shown:false,verdicts:{}};sfx.dd();render()}
+function readFinalInputs(){document.querySelectorAll('[data-fw]').forEach(el=>{const i=+el.dataset.fw;if(el.value!=='')S.final.wagers[i]=Math.max(0,Math.min(fMax(i),parseInt(el.value)||0))})}
+function showFinalClue(){readFinalInputs();const f=S.final;S.teams.forEach((_,i)=>{if(f.wagers[i]==null)f.wagers[i]=0});f.state='clue';f.timerEnd=Date.now()+S.finalTimer*1000;f.timeUp=false;sfx.open();render()}
+function revealFinal(){const f=S.final;f.state='reveal';f.order=S.teams.map((_,i)=>i).sort((a,b)=>S.teams[a].score-S.teams[b].score);f.idx=0;f.shown=false;
+  S.teams.forEach((_,i)=>f.verdicts[i]=S.mode==='net'?(f.choices?f.answers[i]===S.set.final.answer:check(f.answers[i]||'',answersFor(S.set.final))):false);render()}
+function fshow(ok){const f=S.final,i=f.order[f.idx];if(ok!==undefined)f.verdicts[i]=ok;f.shown=true;f.verdicts[i]?sfx.right():sfx.wrong();render()}
+function fnext(){const f=S.final,i=f.order[f.idx],w=f.wagers[i]||0;S.teams[i].score+=f.verdicts[i]?w:-w;f.idx++;f.shown=false;
+  if(f.idx>=f.order.length)endGame();else render()}
+function endGame(){S.phase='end';S.cur=null;sfx.end();render()}
+
+/* ---------- networking: public MQTT relay over secure websockets, no account ---------- */
+const BROKERS=[{url:'wss://public.cloud.shiftr.io',username:'public',password:'public'},{url:'wss://broker.emqx.io:8084/mqtt'},{url:'wss://broker.hivemq.com:8884/mqtt'}];
+let nets=[],netStatus='off',clients=new Map(),bTimer=null;
+const base=()=>'cpareview/v1/'+S.code;
+function initNet(){
+  if(S.mode!=='net'||nets.length)return;
+  if(typeof mqtt==='undefined'){netStatus='nolib';return}
+  netStatus='connecting';
+  nets=BROKERS.map((B,bi)=>{let cl;
+    try{cl=mqtt.connect(B.url,{username:B.username,password:B.password,clientId:'cpah_'+S.code+'_'+Math.random().toString(36).slice(2,8),reconnectPeriod:3000,connectTimeout:8000,clean:true})}catch(e){return null}
+    cl.on('connect',()=>{cl.subscribe(base()+'/up');netStatus='ready';broadcastNow();render()});
+    cl.on('message',(t,p)=>{let m;try{m=JSON.parse(p.toString())}catch(e){return}onUp(bi,m)});
+    cl.on('error',()=>{});
+    return cl});
+  setTimeout(()=>{if(netStatus!=='ready'){netStatus='error';render()}},12000);
+}
+const netReady=()=>nets.some(n=>n&&n.connected);
+function devices(i){let n=0;clients.forEach(v=>{if(v.team===i)n++});return n}
+function toClient(id,m){const c=clients.get(id),n=nets[c?c.b:0];if(n&&n.connected)n.publish(base()+'/c/'+id,JSON.stringify(m))}
+function onUp(bi,m){if(!m||typeof m.id!=='string')return;
+  let c=clients.get(m.id);const isNew=!c;if(!c){c={team:null,b:bi,last:0};clients.set(m.id,c)}c.b=bi;c.last=Date.now();
+  if(m.t==='ping'){if(isNew)render();return}
+  if(m.t==='hello'||m.t==='join'){const ok=Number.isInteger(m.team)&&!!S.teams[m.team]&&m.name===S.teams[m.team].name;
+    c.team=ok?m.team:null;toClient(m.id,{t:'joined',team:c.team});render();return}
+  if(m.t==='leave'){c.team=null;render();return}
+  const i=c.team;if(i==null)return;
+  if(m.t==='buzz')buzz(i,m.id);
+  else if(m.t==='answer'){if(S.cur&&S.cur.choices&&Number.isInteger(m.choice)){if(S.cur.buzzTeam===i)choose(m.choice)}else onAnswer(i,m.text||'')}
+  else if(m.t==='wager'){const w=parseInt(m.amount)||0;
+    if(S.phase==='clue'&&S.cur&&S.cur.dd&&S.cur.state==='dd-wager'&&S.cur.ddTeam===i&&S.cur.wager==null){S.cur.wager=Math.max(0,Math.min(ddMax(i),w));render()}
+    else if(S.phase==='final'&&S.final.state==='category'&&S.final.wagers[i]==null){S.final.wagers[i]=Math.max(0,Math.min(fMax(i),w));render()}}
+  else if(m.t==='fanswer'){const f=S.final;if(S.phase==='final'&&f.state==='clue'&&f.answers[i]==null){f.answers[i]=f.choices&&Number.isInteger(m.choice)?(f.choices[m.choice]||''):String(m.text||'').slice(0,120);render()}}
+}
+setInterval(()=>{const now=Date.now();let ch=false;clients.forEach((v,k)=>{if(now-v.last>20000){clients.delete(k);ch=true}});if(ch)render()},5000);
+function snap(team){const now=Date.now();
+  const o={t:'snap',mc:S.style==='mc',title:S.set.title,phase:S.phase,mode:S.mode,you:team,control:S.control,timer:S.timer,teams:S.teams.map(t=>({name:t.name,score:t.score,color:t.color}))};
+  if(S.phase==='clue'&&S.cur){const c=S.cur,q=curQ(),hid=c.state==='dd-intro'||c.state==='dd-wager';
+    o.cur={id:c.c+'-'+c.r,state:c.state,dd:c.dd,ddTeam:c.ddTeam,buzzTeam:c.buzzTeam,locked:c.locked,category:S.board[c.c].name,points:q.points,
+      clue:hid?'':q.clue,choices:hid?null:c.choices,struck:c.struck||[],wager:c.wager,wagerMax:c.dd?ddMax(c.ddTeam):0,timeLeft:c.state==='answering'&&!c.timeUp?Math.max(0,c.timerEnd-now):0,timeTotal:S.timer*1000,
+      answered:c.answer!=null,verdict:c.state==='judged'?c.verdict:null,delta:c.state==='judged'&&c.last?c.last.delta:0,
+      answer:(c.state==='revealed'||(c.state==='judged'&&c.verdict))?q.answer:''}}
+  if(S.phase==='final'&&S.final&&S.set.final){const f=S.final;
+    o.final={state:f.state,category:S.set.final.category,clue:f.state==='category'?'':S.set.final.clue,choices:f.state==='category'?null:f.choices,wagerMax:team!=null?fMax(team):0,
+      wagered:team!=null&&f.wagers[team]!=null,answered:team!=null&&f.answers[team]!=null,
+      timeLeft:f.state==='clue'&&!f.timeUp?Math.max(0,f.timerEnd-now):0,timeTotal:S.finalTimer*1000}}
+  return o}
+function broadcast(){if(!nets.length)return;clearTimeout(bTimer);bTimer=setTimeout(broadcastNow,60)}
+function broadcastNow(){if(!nets.length||!S.teams.length)return;const used=new Set([...clients.values()].map(c=>c.b));
+  nets.forEach((n,bi)=>{if(!n||!n.connected)return;n.publish(base()+'/t/x',JSON.stringify(snap(null)),{retain:true});
+    if(used.has(bi))S.teams.forEach((_,i)=>n.publish(base()+'/t/'+i,JSON.stringify(snap(i)),{retain:true}))})}
+function buzzerURL(withRoom){const u=new URL('buzzer.html',location.href);u.search='';u.hash='';if(withRoom)u.searchParams.set('room',S.code);return u.href}
+
+/* ---------- views ---------- */
+function seg(k,opts,cur){return `<div class="seg">${opts.map(([v,l])=>`<button class="${String(cur)===String(v)?'on':''}" data-act="opt" data-k="${k}" data-v="${v}">${l}</button>`).join('')}</div>`}
+function vSetup(){const st=S.set,n=st.cats.reduce((a,c)=>a+c.clues.length,0);
+return `<div class="setup">
+<header class="brand"><div class="logo">Review <span>Showdown</span></div><div class="sub">Classroom review game. Load any review set.</div></header>
+<div class="setup-grid">
+<section class="panel"><h3><b>1</b> Review set</h3>
+  <div><div class="setname">${h(st.title)}</div><div class="muted">${h(S.setLabel)}</div></div>
+  <div class="stats">${st.cats.length} categories · ${n} clues · ${st.final?'Final round included':'No final round'}</div>
+  <div class="chips">${st.cats.map(c=>`<span>${h(c.name)}</span>`).join('')}</div>
+  ${(()=>{const all=[...st.cats.flatMap(c=>c.clues),...(st.final?[st.final]:[])],k=all.filter(q=>(q.wrong||[]).length>=3).length;return S.style==='mc'&&k<all.length?`<p class="desc">Wrong choices are written for ${k} of ${all.length} clues. The rest are filled from other answers in this set.</p>`:''})()}
+  ${st.errors.length?`<div class="warn"><b>Check your file:</b><br>${st.errors.slice(0,5).map(h).join('<br>')}${st.errors.length>5?`<br>…and ${st.errors.length-5} more`:''}</div>`:''}
+  <div class="row"><button class="btn sm" data-act="loadFile">Load CSV file</button><button class="btn sm ghost" data-act="builtIn">Use Unit 3 set</button></div>
+  <div class="row"><button class="link" data-act="template">Download blank template</button><button class="link" data-act="exportSet">Download this set as CSV</button></div>
+  <details><summary>Paste from Google Sheets or Excel</summary><textarea id="paste" placeholder="Copy the cells, including the header row, and paste them here"></textarea><button class="btn sm" data-act="loadPaste">Load pasted set</button></details>
+  <p class="desc">You can also drag a .csv file anywhere on this page.</p>
+</section>
+<section class="panel"><h3><b>2</b> Teams</h3>
+  <div class="opt"><span>Number of teams</span>${seg('teamCount',[[3,'3'],[4,'4'],[5,'5'],[6,'6']],S.teamCount)}</div>
+  <div class="names">${S.teamNames.slice(0,S.teamCount).map((t,i)=>`<label style="--c:${COLORS[i]}"><input data-name="${i}" value="${h(t)}" maxlength="18"></label>`).join('')}</div>
+</section>
+<section class="panel"><h3><b>3</b> Buzzers</h3>
+  ${seg('mode',[['net','Student Chromebooks'],['keys','One keyboard']],S.mode)}
+  <p class="desc">${S.mode==='net'?'Students open the buzzer page, type the room code and pick their team. Answers are '+(S.style==='mc'?'tapped from 4 choices':'typed')+' and checked automatically. You can override any call. Needs internet; no accounts.':'Teams buzz on this computer with number keys 1–'+S.teamCount+'. '+(S.style==='mc'?'Teams say A, B, C or D and you click that choice on the board.':'Answers are said out loud and you mark them right or wrong.')+' Works offline.'}</p>
+</section>
+<section class="panel"><h3><b>4</b> Rules</h3>
+  <div class="opt"><span>Answers</span>${seg('style',[['mc','4 choices'],['type','Typed']],S.style)}</div>
+  <div class="opt"><span>Daily Doubles</span>${seg('ddCount',[[0,'None'],[1,'1'],[2,'2']],S.ddCount)}</div>
+  <div class="opt"><span>Seconds to answer</span>${seg('timer',[[5,'5'],[10,'10'],[15,'15'],[20,'20'],[30,'30']],S.timer)}</div>
+  <div class="opt"><span>Wrong answers</span>${seg('subtract',[[1,'Lose points'],[0,'No penalty']],S.subtract?1:0)}</div>
+  <div class="opt"><span>Tutorial before game</span>${seg('tutorial',[[1,'On'],[0,'Off']],S.tutorial?1:0)}</div>
+  <div class="opt"><span>Sound effects</span>${seg('sound',[[1,'On'],[0,'Off']],S.sound?1:0)}</div>
+</section>
+</div>
+<div class="setup-foot"><button class="btn big" data-act="toLobby" ${n?'':'disabled'}>Next: teams join →</button></div>
+</div>`}
+function vJoinCard(){const ps={ready:'Ready for buzzers',connecting:'Opening the room…',error:'Buzzer relay unreachable. This network may block it. Go back and pick One keyboard.',nolib:'Buzzer relay did not load. Check the internet, or go back and pick One keyboard.',off:''}[netStatus];
+  return `<div class="joincard"><div class="eyebrow">Join on your Chromebook</div>
+  <ol><li>Go to <b>${h(buzzerURL(false).replace(/^https?:\/\//,''))}</b></li><li>Type the room code</li><li>Pick your team</li></ol>
+  <div class="code">${S.code}</div>
+  <img class="qr" alt="QR code for the buzzer page" src="https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=0&data=${encodeURIComponent(buzzerURL(true))}">
+  <div class="pstat ${netStatus}"><i></i>${ps} · ${clients.size} device${clients.size===1?'':'s'} connected</div>
+  ${/github\.io$/.test(location.hostname)?'':`<div class="warn">This board is running from a preview or a local file, so student devices can't open this link. Upload the folder to GitHub Pages and open the board from there.</div>`}</div>`}
+function vLobby(){const net=S.mode==='net',now=Date.now();
+return `<div class="lobby">
+${net?vJoinCard():`<div class="joincard"><div class="eyebrow">One-keyboard mode</div><ol><li>Each team gets a number key</li><li>Press your key to buzz in</li><li>Say your answer out loud</li></ol><p class="desc">Try your key now. Your team card lights up.</p></div>`}
+<div class="lteams"><h2>Teams</h2>
+<div class="tgrid">${S.teams.map((t,i)=>`<div class="tcard${flash.i===i&&flash.until>now?' flash':''}" style="--c:${t.color}"><div class="n">${h(t.name)}</div>${net?`<div class="d">${devices(i)} Chromebook${devices(i)===1?'':'s'}</div>`:`<div class="k">${i+1}</div>`}</div>`).join('')}</div>
+<p class="desc">${net?'Students: press BUZZ to test. Your team card lights up.':'Teams: press your number to test.'}</p></div>
+<div class="lfoot"><button class="btn ghost" data-act="back">← Setup</button><div class="row"><button class="btn ghost" data-act="tut">How to play</button><button class="btn big" data-act="start">Start game</button></div></div>
+</div>`}
+function statusText(){const c=S.cur;
+  if(S.phase==='board')return h(S.teams[S.control].name)+' picks the next clue';
+  if(S.phase==='clue'&&c){if(c.state==='open')return 'Buzzers open';if(c.state==='answering')return h(S.teams[c.buzzTeam].name)+' is answering';
+    if(c.dd)return 'Daily Double · '+h(S.teams[c.ddTeam].name);return ''}
+  if(S.phase==='final')return 'Final Round';return ''}
+function vShell(main){const net=S.mode==='net';
+return `<div class="shell"><div class="top"><div class="ttl">${h(S.set.title)}</div><div class="status">${statusText()}</div>
+<div class="tools">${net?`<button class="chip" data-act="joinInfo">Join code <b>${S.code}</b> · ${clients.size}</button>`:`<span class="chip">Buzz keys 1–${S.teams.length}</span>`}
+<button class="tool" data-act="tut">How to play</button><button class="tool" data-act="opt" data-k="sound" data-v="${S.sound?0:1}">${S.sound?'Sound on':'Sound off'}</button>
+${S.phase==='board'&&S.set.final?`<button class="tool" data-act="goFinal">Go to final</button>`:''}<button class="tool" data-act="endGame">End game</button></div></div>
+<main class="main">${main}</main>${vScores()}</div>`}
+function vScores(){const c=S.cur,now=Date.now();
+return `<div class="scores" style="grid-template-columns:repeat(${S.teams.length},minmax(0,1fr))">${S.teams.map((t,i)=>{
+  const bz=(S.phase==='clue'&&c&&c.buzzTeam===i&&(c.state==='answering'||c.state==='judged'))||(flash.i===i&&flash.until>now);
+  const lk=S.phase==='clue'&&c&&!c.dd&&c.locked.includes(i)&&c.state!=='judged';
+  return `<div class="team${bz?' buzz':''}${lk?' locked':''}" style="--c:${t.color}">${S.control===i&&S.phase==='board'?'<span class="picks">Picks</span>':''}
+  ${S.mode==='net'?`<span class="dev">${devices(i)}</span>`:''}<div class="tname">${h(t.name)}</div><div class="tscore${t.score<0?' neg':''}">${fmt(t.score)}</div>
+  <button class="adj" data-act="adj" data-i="${i}">Edit</button></div>`}).join('')}</div>`}
+function vBoard(){const B=S.board,rows=Math.max(...B.map(c=>c.clues.length));let cells=B.map(c=>`<div class="cat">${h(c.name)}</div>`).join('');
+  for(let r=0;r<rows;r++)B.forEach((c,ci)=>{const q=c.clues[r];
+    cells+=!q?`<div class="tile empty"></div>`:q.used?`<div class="tile used"></div>`:`<button class="tile" data-act="pick" data-c="${ci}" data-r="${r}">${q.points}</button>`});
+  return `<div class="board" style="grid-template-columns:repeat(${B.length},minmax(0,1fr));grid-template-rows:minmax(0,1.15fr) repeat(${rows},minmax(0,1fr))">${cells}</div>`}
+function timerHTML(end,total){const left=Math.max(0,end-Date.now());return `<div class="tbar"><i id="tbar" style="width:${left/total*100}%"></i></div><span id="tnum" class="tnum">${Math.ceil(left/1000)}</span>`}
+function vClue(){const c=S.cur,q=curQ(),cat=S.board[c.c].name,t=c.buzzTeam!=null?S.teams[c.buzzTeam]:null,net=S.mode==='net';let card='',foot='';
+  const ch=c.choices,ans=c.state==='revealed'||(c.state==='judged'&&c.last&&c.last.ok)?q.answer:null;
+  const clue=`<div class="cluetext${ch?' mc':''}">${h(q.clue)}</div>`+(ch?choicesHTML(ch,c.struck,ans,c.state==='judged'?c.picked:null,c.state==='answering'):'');
+  switch(c.state){
+  case 'dd-intro':card=`<div class="ddsplash">Daily<br>Double</div>`;
+    foot=`<div class="msg">Which team picked it?</div><div class="row">${S.teams.map((tm,i)=>`<button class="btn ${i===c.ddTeam?'':'ghost'} sm" data-act="ddteam" data-i="${i}">${h(tm.name)}</button>`).join('')}</div>`;break;
+  case 'dd-wager':{const mx=ddMax(c.ddTeam),tm=S.teams[c.ddTeam];
+    card=`<div class="ddsplash sm">Daily Double</div><div class="cardsub">${h(tm.name)}, make your wager: 0 to ${mx}</div>${c.wager!=null?`<div class="bigwager">${c.wager}</div>`:''}`;
+    foot=`<div class="msg">${net?(c.wager!=null?'Wager received from the team\'s Chromebook.':'Waiting for the team\'s Chromebook, or type the wager here.'):'Type the team\'s wager.'}</div><input id="ddw" type="number" min="0" max="${mx}" value="${c.wager??''}" placeholder="Wager"><button class="btn" data-act="showClue">Show clue</button>`;break}
+  case 'reading':card=clue;
+    foot=c.dd?`<div class="msg">Read the clue aloud. ${h(S.teams[c.ddTeam].name)} gets ${S.timer} seconds once you start the timer.</div><button class="btn" data-act="startDD">Start timer <kbd>Space</kbd></button>`
+      :`<div class="msg">Read the clue aloud, then open the buzzers.</div><button class="btn ghost sm" data-act="reveal">Skip, show answer</button><button class="btn" data-act="open">Open buzzers <kbd>Space</kbd></button>`;break;
+  case 'open':card=clue;foot=`<div class="msg buzznow">Buzz now!</div><div class="elig">${eligible().map(i=>`<span style="--c:${S.teams[i].color}">${h(S.teams[i].name)}</span>`).join('')}</div><button class="btn ghost sm" data-act="reveal">No one, show answer</button>`;break;
+  case 'answering':card=clue;foot=`<div class="who" style="--c:${t.color}">${h(t.name)}</div><div class="msg" style="flex:0 1 auto">${c.timeUp?'Time!':(ch?(net?'choosing…':'click the choice they say'):(net?'typing…':'answer out loud'))}</div>${timerHTML(c.timerEnd,S.timer*1000)}<button class="btn bad" data-act="wrong">✗ Wrong</button><button class="btn good" data-act="correct">✓ Correct</button>`;break;
+  case 'judged':{const L=c.last,el=eligible();
+    card=clue+`<div class="result ${L.ok?'ok':'no'}" style="--c:${t.color}"><span class="rteam">${h(t.name)}</span>${c.answer!=null?`<span class="rans">“${h(c.answer||'no answer')}”</span>`:''}<span class="rdelta">${L.ok?'Correct':'Wrong'}${L.delta?` ${L.delta>0?'+':'−'}${Math.abs(L.delta)}`:''}</span></div>${L.ok&&!ch?`<div class="answer">${h(q.answer)}</div>`:''}`;
+    foot=`<button class="btn ghost sm" data-act="override">Override: mark ${L.ok?'wrong':'correct'}</button><div class="msg"></div>`+(L.ok?`<button class="btn" data-act="toBoard">Back to board <kbd>Enter</kbd></button>`
+      :(!c.dd&&el.length?`<button class="btn ghost" data-act="reveal">Show answer</button><button class="btn" data-act="reopen">Other teams buzz <kbd>Space</kbd></button>`:`<button class="btn" data-act="reveal">Show answer <kbd>Enter</kbd></button>`));break}
+  case 'revealed':card=ch?clue:`<div class="cluetext small">${h(q.clue)}</div><div class="answer">${h(q.answer)}</div>`;foot=`<div class="msg"></div><button class="btn" data-act="toBoard">Back to board <kbd>Enter</kbd></button>`;}
+  return `<div class="cluewrap"><div class="cluehead"><span>${h(cat)}</span><span class="cpts">${c.dd?(c.wager!=null?'Wager '+c.wager:'Daily Double'):q.points}</span></div><div class="cluecard${c.state==='open'?' open':''}">${card}</div><div class="foot">${foot}</div></div>`}
+function vFinal(){const f=S.final,F=S.set.final,net=S.mode==='net';let card='',foot='';
+  if(f.state==='category'){card=`<div class="ddsplash sm">Final Round</div><div class="fcat">${h(F.category)}</div><div class="cardsub">Every team makes a wager from 0 up to its score.</div>`;
+    foot=`<div class="fw">${S.teams.map((t,i)=>`<label style="--c:${t.color}"><span>${h(t.name)}</span><input id="fw${i}" type="number" min="0" max="${fMax(i)}" data-fw="${i}" value="${f.wagers[i]??''}" placeholder="0–${fMax(i)}">${f.wagers[i]!=null?'<em>✓</em>':''}</label>`).join('')}</div><button class="btn" data-act="showFinalClue">Show final clue</button>`}
+  else if(f.state==='clue'){card=`<div class="cardsub">${h(F.category)}</div><div class="cluetext${f.choices?' mc':''}">${h(F.clue)}</div>`+(f.choices?choicesHTML(f.choices,[],null,null,false):'');
+    foot=(net?`<div class="fstat">${S.teams.map((t,i)=>`<span style="--c:${t.color}" class="${f.answers[i]!=null?'in':''}">${h(t.name)} ${f.answers[i]!=null?'✓':'…'}</span>`).join('')}</div>`:`<div class="msg">Teams write answers on paper.</div>`)
+      +(f.timeUp?`<div class="msg">Time!</div>`:timerHTML(f.timerEnd,S.finalTimer*1000))+`<button class="btn" data-act="revealFinal">Reveal answers</button>`}
+  else{const i=f.order[f.idx],t=S.teams[i],w=f.wagers[i]||0,ok=f.verdicts[i];
+    card=`<div class="cardsub">${h(F.category)}</div><div class="fteam" style="--c:${t.color}">${h(t.name)}</div><div class="fans">${net?(f.answers[i]?`“${h(f.answers[i])}”`:'No answer'):'Show your written answer'}</div>`
+      +(f.shown?`<div class="result ${ok?'ok':'no'}" style="--c:${t.color}"><span class="rdelta">${ok?'Correct':'Wrong'} · wagered ${w} · ${ok?'+':'−'}${w}</span></div><div class="answer">${h(F.answer)}</div>`:'');
+    foot=`<div class="msg">Team ${f.idx+1} of ${f.order.length}, lowest score first</div>`+(f.shown?`<button class="btn ghost sm" data-act="ftoggle">Mark ${ok?'wrong':'correct'}</button><button class="btn" data-act="fnext">${f.idx+1<f.order.length?'Next team':'Final scores'} <kbd>Enter</kbd></button>`
+      :(net?`<button class="btn" data-act="fshow">Reveal result <kbd>Enter</kbd></button>`:`<button class="btn bad" data-act="fwrong">✗ Wrong</button><button class="btn good" data-act="fright">✓ Correct</button>`))}
+  return `<div class="cluewrap"><div class="cluehead"><span>Final Round</span><span class="cpts">${f.state==='category'?'Wagers':''}</span></div><div class="cluecard">${card}</div><div class="foot">${foot}</div></div>`}
+function vEnd(){const R=S.teams.map(t=>({...t})).sort((a,b)=>b.score-a.score),top=R[0].score,W=R.filter(t=>t.score===top);
+  return `<div class="end"><div class="eyebrow">Final scores</div><div class="winner">${W.map(w=>h(w.name)).join(' & ')} win${W.length>1?'':'s'}!</div>
+  <ol class="rank">${R.map(t=>`<li style="--c:${t.color}"><span>${h(t.name)}</span><b>${fmt(t.score)}</b></li>`).join('')}</ol>
+  <div class="row"><button class="btn ghost" data-act="newGame">New game setup</button><button class="btn" data-act="again">Play again</button></div></div>`}
+function tutSteps(){const net=S.mode==='net',T=S.timer;return [
+  {t:'The board',b:'Each column is a category. Each tile hides a clue. Bigger numbers are harder clues and are worth more points.',
+   v:`<div class="tv-board"><div class="h">Reformers</div><div class="h">Inventions</div><div class="h">Laws</div>${[100,200,300].map(p=>`<div>${p}</div><div>${p}</div><div>${p}</div>`).join('')}</div>`},
+  S.style==='mc'?{t:'Clues describe a term',b:'Each clue is a definition or description. Four terms appear under it, and only one matches. The wrong choices are close, so read carefully.',
+   v:`<div class="tv-clue">THE RIGHT TO VOTE</div><div class="tv-arrow">→</div><div class="choices" style="width:520px">${['Nullification','Suffrage','Abolition','Temperance'].map((x,k)=>`<div class="choice${k===1?' right':''}" style="font-size:22px"><b>${'ABCD'[k]}</b><span>${x}</span></div>`).join('')}</div>`}
+  :{t:'Clues describe a term',b:'Each clue is a definition or description. Answer with the term, person or event it describes. A few words is enough, and you do not need to say “What is…”.',
+   v:`<div class="tv-clue">THE RIGHT TO VOTE</div><div class="tv-arrow">→</div><div class="tv-ans">suffrage</div>`},
+  {t:'Wait, then buzz',b:net?'Your teacher reads the clue out loud. When the board glows gold, buzzers are open. Press BUZZ on your Chromebook, or the space bar. Buzz too early and your team is locked out for 1 second.'
+     :'Your teacher reads the clue out loud. When the board glows gold, press your team’s number key. Buzz too early and your team is locked out for 1 second.',
+   v:`<div class="tv-buzz"><span class="wait">Wait</span><span class="go">Buzz!</span></div>`},
+  {t:`${T} seconds to answer`,b:(S.style==='mc'?(net?'The first team to buzz taps its choice on the Chromebook. ':'The first team to buzz says A, B, C or D. '):(net?'The first team to buzz types its answer on the Chromebook. ':'The first team to buzz says its answer out loud. '))+'A right answer earns the points, and your team picks the next clue. '+(S.subtract?'A wrong answer loses the points, ':'A wrong answer costs nothing, ')+'and the other teams get a chance to buzz'+(S.style==='mc'?' with that choice crossed out.':'.'),
+   v:`<div class="tv-pts"><span class="plus">+300</span><span class="minus">${S.subtract?'−300':'+0'}</span></div>`},
+  S.ddCount>0&&{t:'Daily Double',b:`${S.ddCount===1?'One tile hides':'Two tiles hide'} a Daily Double. Only the team that picked it plays. Bet any amount up to your score (or up to the top clue value if your score is lower), then answer.`,v:`<div class="tv-dd">Daily Double</div>`},
+  S.set.final&&{t:'Final Round',b:`At the end, every team bets some or all of its points, then answers one last clue. ${net?'Type your answer on the Chromebook.':'Write your answer on paper.'} The team with the most points wins.`,v:`<div class="tv-dd">Final Round</div>`}
+].filter(Boolean)}
+function vTutorial(){const st=tutSteps(),i=Math.min(S.tut,st.length-1),s=st[i];
+  return `<div class="ov"><div class="tut"><div class="eyebrow">How to play · ${i+1} of ${st.length}</div><h2>${s.t}</h2><div class="tvis">${s.v}</div><p>${s.b}</p>
+  <div class="dots">${st.map((_,j)=>`<i class="${j===i?'on':''}"></i>`).join('')}</div>
+  <div class="row"><button class="btn ghost sm" data-act="tutClose">Skip</button>${i>0?`<button class="btn ghost" data-act="tutPrev">Back</button>`:''}<button class="btn" data-act="tutNext">${i+1<st.length?'Next':'Let’s play'} <kbd>→</kbd></button></div></div></div>`}
+
+function render(){let html='';
+  if(S.phase==='setup')html=vSetup();else if(S.phase==='lobby')html=vLobby();
+  else if(S.phase==='board')html=vShell(vBoard());else if(S.phase==='clue')html=vShell(vClue());
+  else if(S.phase==='final')html=vShell(vFinal());else html=vEnd();
+  if(S.tut!=null)html+=vTutorial();
+  if(showJoin&&S.mode==='net')html+=`<div class="ov" data-act="closeJoin">${vJoinCard()}</div>`;
+  if(toastMsg)html+=`<div class="toast">${h(toastMsg)}</div>`;
+  const keep=document.activeElement&&document.activeElement.id;
+  $('#app').innerHTML=html;
+  if(keep&&$('#'+keep))$('#'+keep).focus();
+  save();broadcast()}
+
+/* ---------- events ---------- */
+async function loadText(text,label){const st=parseSet(text);S.set=st;S.setLabel=label;render()}
+const ACT={
+  opt:d=>{let v=d.v;v=/^\d+$/.test(v)?+v:v;if(['subtract','tutorial','sound'].includes(d.k))v=!!v;S[d.k]=v;render()},
+  builtIn:()=>loadText(UNIT3,'Built-in set'),
+  loadFile:()=>$('#file').click(),
+  template:()=>download('review-set-template.csv',TEMPLATE),
+  exportSet:()=>download((S.set.title||'review-set').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'-').toLowerCase()+'.csv',toCSV(S.set)),
+  loadPaste:()=>{const t=$('#paste').value;if(t.trim())loadText(t,'Pasted set')},
+  toLobby, back:()=>{S.phase='setup';render()},
+  start:startGame, tut:()=>{S.tut=0;render()},
+  tutNext:()=>{S.tut+1<tutSteps().length?S.tut++:S.tut=null;render()},tutPrev:()=>{S.tut=Math.max(0,S.tut-1);render()},tutClose:()=>{S.tut=null;render()},
+  joinInfo:()=>{showJoin=true;render()},closeJoin:()=>{showJoin=false;render()},
+  pick:d=>pick(+d.c,+d.r),
+  ddteam:d=>{S.cur.ddTeam=+d.i;S.cur.state='dd-wager';render()},
+  showClue:()=>{const el=$('#ddw'),mx=ddMax(S.cur.ddTeam);let v=el&&el.value!==''?parseInt(el.value):S.cur.wager;if(v==null||isNaN(v)){el&&el.focus();return}
+    S.cur.wager=Math.max(0,Math.min(mx,v));S.cur.state='reading';render()},
+  open:openBuzz,startDD,correct:()=>judge(true),wrong:()=>judge(false),override,reopen:openBuzz,reveal,toBoard,
+  adj:d=>{const t=S.teams[+d.i],v=prompt('New score for '+t.name,t.score);if(v!=null&&!isNaN(parseInt(v))){t.score=parseInt(v);render()}},
+  goFinal:()=>{if(confirm('Skip the rest of the board and go to the final round?'))startFinal()},
+  endGame:()=>{if(confirm('End the game and show final scores?'))endGame()},
+  showFinalClue,revealFinal,fshow:()=>fshow(),fright:()=>fshow(true),fwrong:()=>fshow(false),
+  ftoggle:()=>{const f=S.final,i=f.order[f.idx];f.verdicts[i]=!f.verdicts[i];render()},fnext,
+  again:()=>{startGame()},newGame:()=>{S.phase='setup';S.cur=null;S.final=null;render()}
+};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;if(b.dataset.act==='closeJoin'&&e.target!==b)return;const f=ACT[b.dataset.act];if(f)f(b.dataset,b,e)});
+document.addEventListener('input',e=>{const el=e.target;
+  if(el.dataset.name!=null){S.teamNames[+el.dataset.name]=el.value;save()}
+  if(el.dataset.fw!=null&&S.final){const i=+el.dataset.fw;if(el.value==='')delete S.final.wagers[i];else S.final.wagers[i]=Math.max(0,Math.min(fMax(i),parseInt(el.value)||0));save();broadcast()}});
+$('#file').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>loadText(r.result,f.name);r.readAsText(f);e.target.value=''});
+document.addEventListener('dragover',e=>{if(S.phase!=='setup')return;e.preventDefault();document.body.classList.add('dropping')});
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)document.body.classList.remove('dropping')});
+document.addEventListener('drop',e=>{if(S.phase!=='setup')return;e.preventDefault();document.body.classList.remove('dropping');const f=e.dataTransfer.files[0];if(!f)return;const r=new FileReader();r.onload=()=>loadText(r.result,f.name);r.readAsText(f)});
+document.addEventListener('keydown',e=>{
+  if(e.target.matches&&e.target.matches('input,textarea,select')){if(e.key==='Enter'&&e.target.id==='ddw')ACT.showClue();return}
+  if(S.tut!=null){if(e.key==='ArrowRight'||e.key==='Enter'||e.code==='Space'){e.preventDefault();ACT.tutNext()}else if(e.key==='ArrowLeft')ACT.tutPrev();else if(e.key==='Escape')ACT.tutClose();return}
+  if(showJoin&&e.key==='Escape'){showJoin=false;render();return}
+  if(S.mode==='keys'&&/^[1-6]$/.test(e.key)){const i=+e.key-1;if(i<S.teams.length)buzz(i);return}
+  const c=S.cur;
+  if(e.code==='Space'&&S.phase==='clue'&&c){e.preventDefault();
+    if(c.state==='reading')c.dd?startDD():openBuzz();
+    else if(c.state==='judged'&&!c.last.ok&&!c.dd&&eligible().length)openBuzz();return}
+  if(e.key==='Enter'){
+    if(S.phase==='clue'&&c){if(c.state==='revealed'||(c.state==='judged'&&c.last.ok))toBoard();else if(c.state==='judged')reveal()}
+    else if(S.phase==='final'&&S.final.state==='reveal'){S.final.shown?fnext():(S.mode==='net'&&fshow())}}
+});
+setInterval(()=>{let end=0,total=0;
+  if(S.phase==='clue'&&S.cur&&S.cur.state==='answering'&&!S.cur.timeUp){end=S.cur.timerEnd;total=S.timer*1000}
+  else if(S.phase==='final'&&S.final&&S.final.state==='clue'&&!S.final.timeUp){end=S.final.timerEnd;total=S.finalTimer*1000}
+  if(!end){lastTick=null;return}
+  const left=end-Date.now(),bar=$('#tbar'),num=$('#tnum');
+  if(bar)bar.style.width=Math.max(0,left/total*100)+'%';if(num)num.textContent=Math.max(0,Math.ceil(left/1000));
+  const sec=Math.ceil(left/1000);if(sec<=3&&sec>0&&sec!==lastTick){lastTick=sec;sfx.tick()}
+  if(left<=0){lastTick=null;if(S.phase==='clue')timeUp();else{S.final.timeUp=true;sfx.wrong();render()}}
+},100);
+
+/* ---------- boot ---------- */
+(async()=>{const p=new URLSearchParams(location.search).get('set');
+  if(p&&S.phase==='setup'){try{const r=await fetch(p);if(r.ok)S.set=parseSet(await r.text()),S.setLabel=p.split('/').pop()}catch(e){}}
+  if(S.phase!=='setup')initNet();render()})();
+</script>
+</body>
+</html>
